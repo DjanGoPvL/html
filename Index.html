@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ББЖМ тобының тест жинағы</title>
+    <style>
+        /* Основные стили */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 28px;
+            color: #444;
+        }
+
+        .form-container, .question-container, .results-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #4cae4c;
+        }
+
+        .question-image {
+            max-width: 100%;
+            height: auto;
+            margin: 5px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #777;
+        }
+
+        .question-container h3 {
+            margin-bottom: 10px;
+            font-size: 20px;
+            color: #222;
+        }
+
+        .question-container p {
+            font-size: 15px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .question-container label {
+            display: block;
+            text-align: left;
+            margin: 5px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 14px;
+            font-weight: normal;
+        }
+
+        .question-container label:hover, .question-container input[type="radio"]:checked + label {
+            background: #d1e7dd;
+            color: #155724;
+        }
+
+        .question-container input[type="radio"] {
+            display: none;
+        }
+
+        .results-container {
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .results-container strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 16px;
+            color: #444;
+        }
+
+        .results-container p {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .category-results {
+            margin-bottom: 10px;
+        }
+
+        .errors {
+            margin-bottom: 10px;
+        }
+
+        .errors strong {
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <h1>ББЖМ тобының тест жинағы</h1>
+
+    <!-- 1-қадам: Аты-жөніңіз және нұсқаны таңдау -->
+    <div id="step1" class="form-container">
+        <label for="name">Аты-жөніңізді енгізіңіз:</label>
+        <input type="text" id="name" placeholder="Аты">
+
+        <label for="surname">Тегіңізді енгізіңіз:</label>
+        <input type="text" id="surname" placeholder="Тегі">
+
+        <label for="variant">Нұсқаны таңдаңыз:</label>
+        <select id="variant">
+            <option value="">--Нұсқаны таңдаңыз--</option>
+            <option value="variant1">1-нұсқа</option>
+        </select>
+
+        <button id="startQuiz">Тестілеуді бастау</button>
+    </div>
+
+    <!-- 2-қадам: Сұрақтар -->
+    <div id="step2" class="question-container hidden">
+        <div id="questionContainer"></div>
+        <button id="nextQuestion">Келесі</button>
+    </div>
+
+    <!-- 3-қадам: Нәтижелер -->
+    <div id="step3" class="results-container hidden">
+        <div id="results"></div>
+    </div>
+
+    <div class="footer">
+        © 2024 ББЖМ тобының тест жинағы. Барлық құқықтар қорғалған.
+    </div>
+
+    <script>
+        const TELEGRAM_BOT_TOKEN = "7911055795:AAFSEfplEhf5ze6DdaQmR3DGetc6lPIZ28M";
+        const TELEGRAM_CHAT_ID = "1712712729";
+
+        let questionsData = {};
+        let currentCategoryIndex = 0;
+        let currentQuestionIndex = 0;
+        let totalScore = 0;
+        let userName = '', userSurname = '';
+        let categories = [];
+        const errorsByCategory = {};
+        const categoryScores = {};
+
+        async function loadQuestions() {
+            const response = await fetch('./variant1.json');
+            const data = await response.json();
+            questionsData = data.variants[0].categories;
+            categories = Object.keys(questionsData);
+        }
+
+        function startQuiz() {
+            userName = document.getElementById('name').value.trim();
+            userSurname = document.getElementById('surname').value.trim();
+            const variant = document.getElementById('variant').value;
+            if (!userName || !userSurname || !variant) {
+                alert('Барлық өрістерді толтырыңыз!');
+                return;
+            }
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            const category = categories[currentCategoryIndex];
+            const question = questionsData[category][currentQuestionIndex];
+            const container = document.getElementById('questionContainer');
+            container.innerHTML = `<h3>${category}</h3>`;
+            if (question.image) {
+                container.innerHTML += `<img src="${question.image}" class="question-image" />`;
+            }
+            container.innerHTML += `<p>${question.question}</p>`;
+            question.options.forEach((opt, index) => {
+                container.innerHTML += `<input type="radio" id="option${index}" name="answer" value="${index}">
+                                        <label for="option${index}">${opt}</label>`;
+            });
+        }
+
+        function nextQuestion() {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            if (!selected) {
+                alert('Жауапты таңдаңыз!');
+                return;
+            }
+            const category = categories[currentCategoryIndex];
+            const question = questionsData[category][currentQuestionIndex];
+
+            if (parseInt(selected.value) !== question.correct) {
+                errorsByCategory[category] = errorsByCategory[category] || [];
+                errorsByCategory[category].push(`${question.question} - ${question.error}`);
+            } else {
+                totalScore++;
+                categoryScores[category] = (categoryScores[category] || 0) + 1;
+            }
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex >= questionsData[category].length) {
+                currentCategoryIndex++;
+                currentQuestionIndex = 0;
+            }
+            if (currentCategoryIndex >= categories.length) {
+                finishQuiz();
+            } else {
+                displayQuestion();
+            }
+        }
+
+        async function sendResultsToTelegram() {
+            const message = `\ud83d\udc64 Қатысушы: ${userName} ${userSurname}\n\ud83d\udcc3 Жалпы ұпай: ${totalScore}\n\ud83c\udfaf Санаттар бойынша ұпай:\n` +
+                Object.entries(categoryScores).map(([category, score]) => `\u25b6\ufe0f **${category}**: ${score}`).join('\n') +
+                (Object.keys(errorsByCategory).length > 0 ? `\n❌ Қателер:\n` +
+                Object.entries(errorsByCategory).map(([category, errors]) => `\ud83d\udd39 **${category}**:\n${errors.join('\n')}`).join('\n') : '');
+
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: message, parse_mode: 'Markdown' })
+            });
+        }
+
+        function finishQuiz() {
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step3').classList.remove('hidden');
+            let resultHTML = `<strong>Қатысушы:</strong> ${userName} ${userSurname}<br>`;
+            resultHTML += `<strong>📃 Жалпы ұпай:</strong> ${totalScore}<br>`;
+            resultHTML += `<div class="category-results"><strong>🎯 Санаттар бойынша ұпай:</strong><br>`;
+            Object.entries(categoryScores).forEach(([category, score]) => {
+                resultHTML += `${category}: ${score}<br>`;
+            });
+            resultHTML += `</div>`;
+            if (Object.keys(errorsByCategory).length) {
+                resultHTML += `<div class="errors"><strong>❌ Қателер:</strong>`;
+                Object.entries(errorsByCategory).forEach(([category, errors]) => {
+                    resultHTML += `<br><strong>${category}:</strong> ${errors.join('; ')}`;
+                });
+                resultHTML += `</div>`;
+            }
+            document.getElementById('results').innerHTML = resultHTML;
+
+            sendResultsToTelegram();
+        }
+
+        document.getElementById('startQuiz').addEventListener('click', startQuiz);
+        document.getElementById('nextQuestion').addEventListener('click', nextQuestion);
+        loadQuestions();
+    </script>
+</body>
+</html>
